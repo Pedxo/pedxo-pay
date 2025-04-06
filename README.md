@@ -1,1 +1,1 @@
-# pedxo-pay
+payment technology of pedxo.com
