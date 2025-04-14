@@ -14,7 +14,7 @@ pedxo software allows you to onboard virtual engineers to support your code agen
 
 🚀 Recent Developments
 
-Pedxo is a fully remote company, as of recent, all our employess and engineers work from diffirent timezones.
+Pedxo is a fully remote company, as of recent, all our employess and engineers work from diffirent location.
 
 💼 Use Cases
 
