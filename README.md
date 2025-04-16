@@ -1,4 +1,4 @@
-Payment technology of pedxo.com
+Payment engine & technology of pedxo.com
 
 Pedxo.com
  http://pedxo.com
