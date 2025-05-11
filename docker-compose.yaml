@@ -1,0 +1,18 @@
+version: '2'
+services:
+  app:
+      build: .
+      container_name: pedxopay
+      networks:
+          - servers_external_network
+      ports:
+          - 91:91
+      env_file:
+          - ./.env
+      tty: true
+      volumes:
+          - .:/usr/src/app
+          - ./bin/log/pedxopay:/var/log/application/pedxopay
+networks:
+  servers_external_network:
+    external: true
