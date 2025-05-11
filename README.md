@@ -25,3 +25,7 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
+
+use pedxo to hire teleoperator humans to support your AI code agents on edge cases and pay as you go
+
+use pedxo to hire teleoperator humans to support your AI code agents on edge cases and pay as you go
