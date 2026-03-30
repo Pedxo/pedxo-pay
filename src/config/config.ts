@@ -11,7 +11,7 @@ const config = {
   typeOrm: {
     type: process.env.TYPEORM_CONNECTION || ("mysql" as DatabaseType),
     host: process.env.DATABASE_HOST,
-    port: process.env.DATABASE_PORT || 3306,
+    port: Number(process.env.DATABASE_PORT) || 3306,
     username: process.env.DATABASE_USERNAME,
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE,
@@ -23,12 +23,15 @@ const config = {
     migrations: (process.env.TYPEORM_MIGRATIONS as string).split("|"),
     synchronize: process.env.TYPEORM_SYNCHRONIZE == "true",
     migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN == "true",
+     ssl: {
+    rejectUnauthorized: false,
+  },
     cli: { migrationsDir: process.env.TYPEORM_MIGRATIONS_DIR },
   },
   dSource: {
     type: process.env.TYPEORM_CONNECTION || ("mysql" as DatabaseType),
     host: process.env.DATABASE_HOST,
-    port: process.env.DATABASE_PORT || 3306,
+    port: Number(process.env.DATABASE_PORT) || 3306,
     username: process.env.DATABASE_USERNAME,
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE,
@@ -40,6 +43,9 @@ const config = {
     migrations: (process.env.DATA_S_TYPEORM_MIG as string).split("|"),
     synchronize: process.env.TYPEORM_SYNCHRONIZE == "true",
     migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN == "true",
+     ssl: {
+    rejectUnauthorized: false,
+  },
     cli: { migrationsDir: process.env.TYPEORM_MIGRATIONS_DIR },
   },
 };
