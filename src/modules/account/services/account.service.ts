@@ -28,13 +28,13 @@ export class AccountService {
     @InjectRepository(Account) private accountRepo: Repository<Account>,
     private transactionService: TransactionsService,
     @InjectRepository(User) private userRepo: Repository<User>,
-    private configService: ConfigService
+    private configService: ConfigService,
   ) {
     this.config = this.configService.get("app");
   }
 
   async getBalance(
-    getAccByAccNumDto: GetAccByAccNumDto
+    getAccByAccNumDto: GetAccByAccNumDto,
   ): Promise<GetBalanceResdDto> {
     const account = await this.accountRepo.findOne({
       where: { account_number: getAccByAccNumDto.account_number },
@@ -101,8 +101,37 @@ export class AccountService {
     });
   }
 
-  async createAccount(createAccountDto: CreateAccountDto): Promise<Account> {
+  async createAccount(createAccountDto: CreateAccountDto) {
+    // ✅ Only validate user if NOT pool
+    if (createAccountDto.type !== AccountTypes.POOL) {
+      const user = await this.userRepo.findOne({
+        where: { id: createAccountDto.user_id },
+      });
+
+      if (!user) {
+        throw new BadRequestException("User does not exist");
+      }
+    } else {
+      // ✅ For pool accounts, remove user_id completely
+      createAccountDto.user_id = null;
+    }
+
+    const existingAcc = await this.accountRepo.findOne({
+      where: {
+        user_id: createAccountDto.user_id,
+        type: createAccountDto.type,
+      },
+    });
+
+    if (existingAcc)
+      return {
+        error: true,
+        message: "Account already exist for this user and account type",
+        data: existingAcc,
+      };
+
     const acc_num = (await this.newAccNum(createAccountDto.type)).toString();
+
     createAccountDto.account_name =
       createAccountDto.type == AccountTypes.SAVING
         ? createAccountDto.account_name
@@ -117,7 +146,9 @@ export class AccountService {
               currency: createAccountDto.currency,
             },
           });
+
     if (exist) return exist;
+
     try {
       return await this.accountRepo.save({
         ...createAccountDto,
@@ -125,7 +156,7 @@ export class AccountService {
       });
     } catch (error) {
       const res = error.message.includes("FOREIGN KEY")
-        ? "Unknow user_id"
+        ? "Unknown user_id"
         : error.message;
       throw new BadRequestException(res);
     }
@@ -136,7 +167,7 @@ export class AccountService {
   }
 
   async getPoolAccountNumber(
-    currency: string = Currency.NGN
+    currency: string = Currency.NGN,
   ): Promise<Account> {
     return await this.accountRepo.findOne({
       where: { currency, type: "pool" },

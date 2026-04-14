@@ -20,6 +20,7 @@ import {
 import { DepositDto } from "./dto/deposit.dto";
 import { InitiateTrxResDto } from "./dto/post-response.dto";
 import { plainToInstance } from "class-transformer";
+import { TransactionTypes } from "./transactionEnum/transaction.enum";
 
 @Controller("transaction")
 export class TransactionsController {
@@ -47,7 +48,10 @@ export class TransactionsController {
   payout(@Body() depositDto: DepositDto): InitiateTrxResDto {
     return plainToInstance(
       InitiateTrxResDto,
-      this.transactionsService.deposit(depositDto)
+      this.transactionsService.deposit({
+      ...depositDto,
+      type: TransactionTypes.PAYOUT,
+    })
     );
   }
 
