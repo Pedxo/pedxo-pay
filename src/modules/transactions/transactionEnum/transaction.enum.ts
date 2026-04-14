@@ -15,3 +15,8 @@ export enum DbSort {
   DESC = "DESC",
   ASC = "ASC",
 }
+
+export enum TransactionDirection {
+  DEBIT = "debit",
+  CREDIT = "credit",
+}

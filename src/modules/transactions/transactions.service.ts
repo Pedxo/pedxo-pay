@@ -165,41 +165,51 @@ export class TransactionsService {
     };
   }
 
-  getTransactionHistoryPayload(
-    createTrxDto: CreateTransactionDto,
-    iniBalanceRes: PosBalanceRes,
-    recBalanceRes: PosBalanceRes,
-    ref = null,
-    currency = null
-  ): PostTrxDTO[] {
-    const payment_ref =
-      createTrxDto.type !== TransactionTypes.REVERSAL
-        ? this.getPaymentRef(createTrxDto.type)
-        : ref;
-    let description = `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
+ getTransactionHistoryPayload(
+  createTrxDto: CreateTransactionDto,
+  iniBalanceRes: PosBalanceRes,
+  recBalanceRes: PosBalanceRes,
+  ref = null,
+  currency = null
+): PostTrxDTO[] {
+  const payment_ref =
+    createTrxDto.type !== TransactionTypes.REVERSAL
+      ? this.getPaymentRef(createTrxDto.type)
+      : ref;
 
-    let initiatorData = {
-      account_number: createTrxDto.initiator_accountNumber,
-      ...createTrxDto,
-      payment_ref,
-      status: TransactionStatus.SUCCESSFUL,
-      ...iniBalanceRes,
-      description,
-      currency,
-    };
-    initiatorData.amount = -Math.abs(createTrxDto.amount);
-    let recipientrData = {
-      account_number: createTrxDto.recipient_accountNumber,
-      ...createTrxDto,
-      payment_ref,
-      status: TransactionStatus.SUCCESSFUL,
-      ...recBalanceRes,
-      description,
-      currency,
-    };
-    recipientrData.amount = Math.abs(createTrxDto.amount);
-    return [initiatorData, recipientrData];
-  }
+  let description = `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
+
+  // 🔻 INITIATOR (money leaving → DEBIT)
+  let initiatorData = {
+    account_number: createTrxDto.initiator_accountNumber,
+    ...createTrxDto,
+    payment_ref,
+    status: TransactionStatus.SUCCESSFUL,
+    ...iniBalanceRes,
+    description,
+    currency,
+    direction: "debit",
+  };
+
+  initiatorData.amount = -Math.abs(createTrxDto.amount);
+
+  // 🔺 RECIPIENT (money entering → CREDIT)
+  let recipientData = {
+    account_number: createTrxDto.recipient_accountNumber,
+    ...createTrxDto,
+    payment_ref,
+    status: TransactionStatus.SUCCESSFUL,
+    ...recBalanceRes,
+    description,
+    currency,
+    direction: "credit",
+  };
+
+  recipientData.amount = Math.abs(createTrxDto.amount);
+
+  return [initiatorData, recipientData];
+}
+
   getPaymentRef(type: string) {
     let tiemStapm = Date.now();
     let prifix = type.slice(0, 3);
