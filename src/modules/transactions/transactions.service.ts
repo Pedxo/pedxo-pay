@@ -177,7 +177,7 @@ export class TransactionsService {
       ? this.getPaymentRef(createTrxDto.type)
       : ref;
 
-  let description = `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
+  let description = createTrxDto.narration || `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
 
   // 🔻 INITIATOR (money leaving → DEBIT)
   let initiatorData = {
