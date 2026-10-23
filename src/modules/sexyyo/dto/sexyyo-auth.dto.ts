@@ -15,7 +15,7 @@ export class SexyyoRegisterDto {
   last_name?: string;
 
   @IsOptional()
-  @Length(4, 4, { message: "PIN must be exactly 4 digits." })
+  @Length(4, 6, { message: "PIN must be between 4 and 6 digits." })
   transaction_pin?: string;
 }
 
@@ -29,7 +29,7 @@ export class SexyyoLoginDto {
 
 export class SexyyoSetPinDto {
   @IsNotEmpty()
-  @Length(4, 4, { message: "PIN must be exactly 4 digits." })
+  @Length(4, 6, { message: "PIN must be between 4 and 6 digits." })
   pin: string;
 }
 
