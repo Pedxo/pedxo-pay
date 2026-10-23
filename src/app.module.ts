@@ -3,7 +3,8 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AccountModule } from "./modules/account/account.module";
 import { TransactionsModule } from "./modules/transactions/transactions.module";
-import { TypeOrmModule, TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { SexyyoModule } from "./modules/sexyyo/sexyyo.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { appConfig } from "./config/app.config";
@@ -25,7 +26,13 @@ const typeOrmModuel = TypeOrmModule.forRootAsync({
 });
 
 @Module({
-  imports: [configModule, typeOrmModuel, AccountModule, TransactionsModule],
+  imports: [
+    configModule,
+    typeOrmModuel,
+    AccountModule,
+    TransactionsModule,
+    SexyyoModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
