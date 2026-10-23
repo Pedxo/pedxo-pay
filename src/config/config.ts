@@ -2,6 +2,8 @@ import { DatabaseType, LoggerOptions } from "typeorm";
 import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: ".env" });
 
+const useSsl = process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false;
+
 const config = {
   app: {
     env: process.env.APP_ENV || "development",
@@ -15,17 +17,15 @@ const config = {
     username: process.env.DATABASE_USERNAME,
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE,
-    entities: (process.env.TYPEORM_ENTITIES as string).split("|"),
+    entities: (process.env.TYPEORM_ENTITIES as string)?.split("|") || [],
     autoLoadEntities: process.env.TYPEORM_AUTO_LOAD_ENTITIES == "true",
-    logging: (process.env.TYPEORM_LOGGING as string).split(
+    logging: (process.env.TYPEORM_LOGGING as string)?.split(
       "|"
     ) as LoggerOptions,
-    migrations: (process.env.TYPEORM_MIGRATIONS as string).split("|"),
+    migrations: (process.env.TYPEORM_MIGRATIONS as string)?.split("|") || [],
     synchronize: process.env.TYPEORM_SYNCHRONIZE == "true",
     migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN == "true",
-     ssl: {
-    rejectUnauthorized: false,
-  },
+    ssl: useSsl,
     cli: { migrationsDir: process.env.TYPEORM_MIGRATIONS_DIR },
   },
   dSource: {
@@ -35,17 +35,15 @@ const config = {
     username: process.env.DATABASE_USERNAME,
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE,
-    entities: (process.env.DATA_S_TYPEORM_ENTITIES as string).split("|"),
+    entities: (process.env.DATA_S_TYPEORM_ENTITIES as string)?.split("|") || [],
     autoLoadEntities: process.env.TYPEORM_AUTO_LOAD_ENTITIES == "true",
-    logging: (process.env.TYPEORM_LOGGING as string).split(
+    logging: (process.env.TYPEORM_LOGGING as string)?.split(
       "|"
     ) as LoggerOptions,
-    migrations: (process.env.DATA_S_TYPEORM_MIG as string).split("|"),
+    migrations: (process.env.DATA_S_TYPEORM_MIG as string)?.split("|") || [],
     synchronize: process.env.TYPEORM_SYNCHRONIZE == "true",
     migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN == "true",
-     ssl: {
-    rejectUnauthorized: false,
-  },
+    ssl: useSsl,
     cli: { migrationsDir: process.env.TYPEORM_MIGRATIONS_DIR },
   },
 };
