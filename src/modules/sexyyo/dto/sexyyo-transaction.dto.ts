@@ -54,3 +54,30 @@ export class SexyyoTransferDto {
   @IsOptional()
   pin?: string;
 }
+
+export class SexyyoWithdrawDto {
+  @IsEnum(Currency)
+  currency: Currency;
+
+  @IsNumber()
+  @IsPositive()
+  amount: number;
+
+  @IsNotEmpty()
+  destination_type: "bank" | "crypto";
+
+  @IsNotEmpty()
+  destination_account: string; // Bank account number or crypto wallet address
+
+  @IsOptional()
+  bank_name?: string;
+
+  @IsOptional()
+  crypto_network?: string; // Solana, Ethereum, Polygon
+
+  @IsOptional()
+  narration?: string;
+
+  @IsOptional()
+  pin?: string;
+}

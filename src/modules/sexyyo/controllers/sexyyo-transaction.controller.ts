@@ -12,10 +12,13 @@ import { SexyyoTransactionService } from "../services/sexyyo-transaction.service
 import {
   SexyyoCheckoutDto,
   SexyyoDepositDto,
+  SexyyoTransferDto,
+  SexyyoWithdrawDto,
 } from "../dto/sexyyo-transaction.dto";
 import { SexyyoJwtGuard } from "../guards/sexyyo-jwt.guard";
 import { CurrentUser } from "../guards/current-user.decorator";
 import { User } from "src/modules/account/entities/user.entity";
+import { Currency } from "src/modules/account/dto/account.dto";
 
 @Controller("sexyyo/transaction")
 export class SexyyoTransactionController {
@@ -31,6 +34,35 @@ export class SexyyoTransactionController {
     @Body() dto: SexyyoCheckoutDto
   ) {
     return this.transactionService.checkout(user.id, dto);
+  }
+
+  @Post("transfer")
+  @UseGuards(SexyyoJwtGuard)
+  @HttpCode(HttpStatus.OK)
+  async transfer(
+    @CurrentUser() user: User,
+    @Body() dto: SexyyoTransferDto
+  ) {
+    return this.transactionService.transfer(user.id, dto);
+  }
+
+  @Post("withdraw")
+  @UseGuards(SexyyoJwtGuard)
+  @HttpCode(HttpStatus.OK)
+  async withdraw(
+    @CurrentUser() user: User,
+    @Body() dto: SexyyoWithdrawDto
+  ) {
+    return this.transactionService.withdraw(user.id, dto);
+  }
+
+  @Get("lookup-recipient")
+  @UseGuards(SexyyoJwtGuard)
+  async lookupRecipient(
+    @Query("query") query: string,
+    @Query("currency") currency: Currency
+  ) {
+    return this.transactionService.lookupRecipient(query, currency);
   }
 
   @Get("history")

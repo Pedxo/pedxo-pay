@@ -19,6 +19,7 @@ import {
   SexyyoCheckoutDto,
   SexyyoDepositDto,
   SexyyoTransferDto,
+  SexyyoWithdrawDto,
 } from "../dto/sexyyo-transaction.dto";
 import { SexyyoAuthService } from "./sexyyo-auth.service";
 
@@ -159,6 +160,252 @@ export class SexyyoTransactionService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async transfer(userId: number, dto: SexyyoTransferDto) {
+    const senderAccount = await this.accountRepo.findOne({
+      where: {
+        user_id: userId,
+        currency: dto.currency,
+        type: AccountTypes.SAVING,
+      },
+    });
+
+    if (!senderAccount) {
+      throw new BadRequestException(
+        `Wallet for currency ${dto.currency} not found on your profile.`
+      );
+    }
+
+    const currentBalance = parseFloat(senderAccount.balance?.toString() || "0");
+    if (currentBalance < dto.amount) {
+      throw new BadRequestException(
+        `Insufficient balance in your ${dto.currency} wallet. Current: ${currentBalance.toFixed(2)}, required: ${dto.amount.toFixed(2)}.`
+      );
+    }
+
+    if (dto.pin) {
+      const pinValid = await this.authService.verifyPin(userId, dto.pin);
+      if (!pinValid) {
+        throw new BadRequestException("Invalid transaction PIN.");
+      }
+    }
+
+    const recipientAccount = await this.accountRepo.findOne({
+      where: {
+        account_number: dto.recipient_account_number,
+        currency: dto.currency,
+      },
+    });
+
+    if (!recipientAccount) {
+      throw new NotFoundException(
+        `Recipient account ${dto.recipient_account_number} not found for ${dto.currency}.`
+      );
+    }
+
+    if (recipientAccount.id === senderAccount.id) {
+      throw new BadRequestException("Cannot transfer to the same wallet.");
+    }
+
+    const paymentRef = this.generateRef("TRF");
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const senderOpening = currentBalance;
+      const senderClosing = senderOpening - Math.abs(dto.amount);
+      senderAccount.balance = senderClosing;
+      await queryRunner.manager.save(Account, senderAccount);
+
+      const recipientOpening = parseFloat(
+        recipientAccount.balance?.toString() || "0"
+      );
+      const recipientClosing = recipientOpening + Math.abs(dto.amount);
+      recipientAccount.balance = recipientClosing;
+      await queryRunner.manager.save(Account, recipientAccount);
+
+      const narration = dto.narration || `Transfer to ${recipientAccount.account_name}`;
+
+      // Sender Debit
+      const senderDebit = queryRunner.manager.create(Transactions, {
+        account_number: senderAccount.account_number,
+        type: TransactionTypes.PAYOUT,
+        status: TransactionStatus.SUCCESSFUL,
+        opening_balance: senderOpening,
+        amount: -Math.abs(dto.amount),
+        closing_balance: senderClosing,
+        payment_ref: paymentRef,
+        initiator_name: senderAccount.account_name,
+        initiator_accountNumber: senderAccount.account_number,
+        recipient_name: recipientAccount.account_name,
+        recipient_accountNumber: recipientAccount.account_number,
+        narration,
+        description: `Transfer of ${dto.currency} ${dto.amount} to ${recipientAccount.account_name}`,
+        ini_reference: paymentRef,
+      });
+
+      // Recipient Credit
+      const recipientCredit = queryRunner.manager.create(Transactions, {
+        account_number: recipientAccount.account_number,
+        type: TransactionTypes.DEPOSIT,
+        status: TransactionStatus.SUCCESSFUL,
+        opening_balance: recipientOpening,
+        amount: Math.abs(dto.amount),
+        closing_balance: recipientClosing,
+        payment_ref: paymentRef,
+        initiator_name: senderAccount.account_name,
+        initiator_accountNumber: senderAccount.account_number,
+        recipient_name: recipientAccount.account_name,
+        recipient_accountNumber: recipientAccount.account_number,
+        narration: `Received transfer from ${senderAccount.account_name}`,
+        description: `Received ${dto.currency} ${dto.amount} from ${senderAccount.account_name}`,
+        ini_reference: paymentRef,
+      });
+
+      await queryRunner.manager.save(Transactions, [senderDebit, recipientCredit]);
+      await queryRunner.commitTransaction();
+
+      return {
+        success: true,
+        message: "Transfer completed successfully.",
+        reference: paymentRef,
+        amount: dto.amount,
+        currency: dto.currency,
+        recipient_name: recipientAccount.account_name,
+        recipient_account: recipientAccount.account_number,
+        new_balance: senderClosing,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw new BadRequestException(`Transfer failed: ${err.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async withdraw(userId: number, dto: SexyyoWithdrawDto) {
+    const userAccount = await this.accountRepo.findOne({
+      where: {
+        user_id: userId,
+        currency: dto.currency,
+        type: AccountTypes.SAVING,
+      },
+    });
+
+    if (!userAccount) {
+      throw new BadRequestException(
+        `Wallet for currency ${dto.currency} not found on your profile.`
+      );
+    }
+
+    const currentBalance = parseFloat(userAccount.balance?.toString() || "0");
+    if (currentBalance < dto.amount) {
+      throw new BadRequestException(
+        `Insufficient balance in your ${dto.currency} wallet. Current: ${currentBalance.toFixed(2)}, required: ${dto.amount.toFixed(2)}.`
+      );
+    }
+
+    if (dto.pin) {
+      const pinValid = await this.authService.verifyPin(userId, dto.pin);
+      if (!pinValid) {
+        throw new BadRequestException("Invalid transaction PIN.");
+      }
+    }
+
+    const poolAccount = await this.accountRepo.findOne({
+      where: { currency: dto.currency, type: AccountTypes.POOL },
+    });
+
+    if (!poolAccount) {
+      throw new BadRequestException(
+        `Platform settlement pool for ${dto.currency} not found.`
+      );
+    }
+
+    const paymentRef = this.generateRef("WTH");
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const userOpening = currentBalance;
+      const userClosing = userOpening - Math.abs(dto.amount);
+      userAccount.balance = userClosing;
+      await queryRunner.manager.save(Account, userAccount);
+
+      const poolOpening = parseFloat(poolAccount.balance?.toString() || "0");
+      const poolClosing = poolOpening + Math.abs(dto.amount);
+      poolAccount.balance = poolClosing;
+      await queryRunner.manager.save(Account, poolAccount);
+
+      const destinationInfo =
+        dto.destination_type === "crypto"
+          ? `${dto.crypto_network || "Crypto"} address: ${dto.destination_account}`
+          : `${dto.bank_name || "Bank"} (${dto.destination_account})`;
+
+      const narration = dto.narration || `Withdrawal payout to ${destinationInfo}`;
+
+      const userDebitTrx = queryRunner.manager.create(Transactions, {
+        account_number: userAccount.account_number,
+        type: TransactionTypes.PAYOUT,
+        status: TransactionStatus.SUCCESSFUL,
+        opening_balance: userOpening,
+        amount: -Math.abs(dto.amount),
+        closing_balance: userClosing,
+        payment_ref: paymentRef,
+        initiator_name: userAccount.account_name,
+        initiator_accountNumber: userAccount.account_number,
+        recipient_name: destinationInfo,
+        recipient_accountNumber: dto.destination_account,
+        narration,
+        description: `Payout of ${dto.currency} ${dto.amount} to ${destinationInfo}`,
+        ini_reference: paymentRef,
+      });
+
+      await queryRunner.manager.save(Transactions, userDebitTrx);
+      await queryRunner.commitTransaction();
+
+      return {
+        success: true,
+        message: "Withdrawal submitted successfully and is processing.",
+        reference: paymentRef,
+        amount: dto.amount,
+        currency: dto.currency,
+        destination_type: dto.destination_type,
+        destination: destinationInfo,
+        new_balance: userClosing,
+        estimated_arrival: "5-15 minutes",
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw new BadRequestException(`Withdrawal failed: ${err.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async lookupRecipient(query: string, currency: Currency) {
+    const account = await this.accountRepo.findOne({
+      where: [
+        { account_number: query, currency },
+        { account_name: query, currency },
+      ],
+    });
+
+    if (!account) {
+      throw new NotFoundException(
+        `Recipient matching '${query}' for currency ${currency} not found.`
+      );
+    }
+
+    return {
+      found: true,
+      account_number: account.account_number,
+      account_name: account.account_name,
+      currency: account.currency,
+    };
   }
 
   async depositTopUp(dto: SexyyoDepositDto) {
