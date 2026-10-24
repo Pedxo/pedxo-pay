@@ -24,6 +24,10 @@ export class User {
   @Column({ nullable: true })
   password: string;
 
+  @Exclude({ toPlainOnly: true })
+  @Column({ nullable: true })
+  transaction_pin: string;
+
   @Column({ nullable: true })
   first_name: string;
 
