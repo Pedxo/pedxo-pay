@@ -15,6 +15,7 @@ import {
   TransactionStatus,
   TransactionTypes,
 } from "src/modules/transactions/transactionEnum/transaction.enum";
+import { User } from "src/modules/account/entities/user.entity";
 import {
   SexyyoCheckoutDto,
   SexyyoDepositDto,
@@ -191,16 +192,33 @@ export class SexyyoTransactionService {
       }
     }
 
-    const recipientAccount = await this.accountRepo.findOne({
+    const recipientQuery = dto.recipient_account_number.trim();
+    let recipientAccount = await this.accountRepo.findOne({
       where: {
-        account_number: dto.recipient_account_number,
+        account_number: recipientQuery,
         currency: dto.currency,
       },
     });
 
     if (!recipientAccount) {
+      // Lookup by user email or name
+      const user = await this.dataSource.getRepository(User).findOne({
+        where: { email: recipientQuery.toLowerCase() },
+      });
+      if (user) {
+        recipientAccount = await this.accountRepo.findOne({
+          where: {
+            user_id: user.id,
+            currency: dto.currency,
+            type: AccountTypes.SAVING,
+          },
+        });
+      }
+    }
+
+    if (!recipientAccount) {
       throw new NotFoundException(
-        `Recipient account ${dto.recipient_account_number} not found for ${dto.currency}.`
+        `Recipient account '${dto.recipient_account_number}' not found for ${dto.currency}.`
       );
     }
 
@@ -387,12 +405,28 @@ export class SexyyoTransactionService {
   }
 
   async lookupRecipient(query: string, currency: Currency) {
-    const account = await this.accountRepo.findOne({
+    const trimmed = query.trim();
+    let account = await this.accountRepo.findOne({
       where: [
-        { account_number: query, currency },
-        { account_name: query, currency },
+        { account_number: trimmed, currency },
+        { account_name: trimmed, currency },
       ],
     });
+
+    if (!account) {
+      const user = await this.dataSource.getRepository(User).findOne({
+        where: { email: trimmed.toLowerCase() },
+      });
+      if (user) {
+        account = await this.accountRepo.findOne({
+          where: {
+            user_id: user.id,
+            currency,
+            type: AccountTypes.SAVING,
+          },
+        });
+      }
+    }
 
     if (!account) {
       throw new NotFoundException(
