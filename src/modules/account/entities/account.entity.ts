@@ -17,10 +17,10 @@ export class Account {
 
   @ManyToOne(() => User, (user) => user.accounts, { nullable: true })
   @JoinColumn({ name: "user_id" })
-  user: User;
+  user: User | null;
 
-  @Column()
-  user_id: number;
+  @Column({ type: "int", nullable: true })
+  user_id: number | null;
 
   @Column({ nullable: false, unique: true })
   account_number: string;
