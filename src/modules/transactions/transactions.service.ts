@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 import {
   ReverseTrxDto,
@@ -27,12 +27,12 @@ export class TransactionsService {
   constructor(
     @InjectRepository(Transactions)
     private transactionRepo: Repository<Transactions>,
-    private dabaseSource: DataSource
+    private dabaseSource: DataSource,
   ) {}
 
   async initiate(
     createTransactionDto: CreateTransactionDto,
-    ref = null
+    ref = null,
   ): Promise<Transactions> {
     const trxExist =
       createTransactionDto.type !== TransactionTypes.REVERSAL
@@ -54,12 +54,12 @@ export class TransactionsService {
       iniBalanceRes.balanceRes,
       recBalanceRes.balanceRes,
       ref,
-      iniBalanceRes.account.currency
+      iniBalanceRes.account.currency,
     );
     return await this.post(
       trxPaylod,
       iniBalanceRes.account,
-      recBalanceRes.account
+      recBalanceRes.account,
     );
   }
 
@@ -79,7 +79,7 @@ export class TransactionsService {
 
   async getTransactionByAcc(
     accNumm: GetTrxByAccountDto,
-    qeury: GetAllTransactionDto
+    qeury: GetAllTransactionDto,
   ) {
     let order = qeury?.order ?? DbSort.DESC;
     try {
@@ -101,7 +101,7 @@ export class TransactionsService {
   async post(
     trxPaylod: PostTrxDTO[],
     iniAccount: Account,
-    recAccount: Account
+    recAccount: Account,
   ): Promise<Transactions> {
     let trxResponse: Transactions[] | Transactions;
 
@@ -115,7 +115,7 @@ export class TransactionsService {
       let createInstance = queryRunner.manager.create(Transactions, trxPaylod);
       trxResponse = await queryRunner.manager.save(
         Transactions,
-        createInstance
+        createInstance,
       );
       await queryRunner.commitTransaction();
       return trxResponse[0];
@@ -130,7 +130,7 @@ export class TransactionsService {
     }
   }
   async debitInitiator(
-    createTrxDto: CreateTransactionDto
+    createTrxDto: CreateTransactionDto,
   ): Promise<PostToAccResponse> {
     let initiatorAcc = await this.dabaseSource.manager.findOne(Account, {
       where: { account_number: createTrxDto.initiator_accountNumber },
@@ -149,7 +149,7 @@ export class TransactionsService {
   }
 
   async creditRecipient(
-    createTrxDto: CreateTransactionDto
+    createTrxDto: CreateTransactionDto,
   ): Promise<PostToAccResponse> {
     let recipientAcc = await this.dabaseSource.manager.findOne(Account, {
       where: { account_number: createTrxDto.recipient_accountNumber },
@@ -165,50 +165,52 @@ export class TransactionsService {
     };
   }
 
- getTransactionHistoryPayload(
-  createTrxDto: CreateTransactionDto,
-  iniBalanceRes: PosBalanceRes,
-  recBalanceRes: PosBalanceRes,
-  ref = null,
-  currency = null
-): PostTrxDTO[] {
-  const payment_ref =
-    createTrxDto.type !== TransactionTypes.REVERSAL
-      ? this.getPaymentRef(createTrxDto.type)
-      : ref;
+  getTransactionHistoryPayload(
+    createTrxDto: CreateTransactionDto,
+    iniBalanceRes: PosBalanceRes,
+    recBalanceRes: PosBalanceRes,
+    ref = null,
+    currency = null,
+  ): PostTrxDTO[] {
+    const payment_ref =
+      createTrxDto.type !== TransactionTypes.REVERSAL
+        ? this.getPaymentRef(createTrxDto.type)
+        : ref;
 
-  let description = createTrxDto.narration || `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
+    let description =
+      createTrxDto.narration ||
+      `From ${createTrxDto.initiator_name} to ${createTrxDto.recipient_name}`;
 
-  // 🔻 INITIATOR (money leaving → DEBIT)
-  let initiatorData = {
-    account_number: createTrxDto.initiator_accountNumber,
-    ...createTrxDto,
-    payment_ref,
-    status: TransactionStatus.SUCCESSFUL,
-    ...iniBalanceRes,
-    description,
-    currency,
-    direction: "debit",
-  };
+    // 🔻 INITIATOR (money leaving → DEBIT)
+    let initiatorData = {
+      account_number: createTrxDto.initiator_accountNumber,
+      ...createTrxDto,
+      payment_ref,
+      status: TransactionStatus.SUCCESSFUL,
+      ...iniBalanceRes,
+      description,
+      currency,
+      direction: "debit",
+    };
 
-  initiatorData.amount = -Math.abs(createTrxDto.amount);
+    initiatorData.amount = -Math.abs(createTrxDto.amount);
 
-  // 🔺 RECIPIENT (money entering → CREDIT)
-  let recipientData = {
-    account_number: createTrxDto.recipient_accountNumber,
-    ...createTrxDto,
-    payment_ref,
-    status: TransactionStatus.SUCCESSFUL,
-    ...recBalanceRes,
-    description,
-    currency,
-    direction: "credit",
-  };
+    // 🔺 RECIPIENT (money entering → CREDIT)
+    let recipientData = {
+      account_number: createTrxDto.recipient_accountNumber,
+      ...createTrxDto,
+      payment_ref,
+      status: TransactionStatus.SUCCESSFUL,
+      ...recBalanceRes,
+      description,
+      currency,
+      direction: "credit",
+    };
 
-  recipientData.amount = Math.abs(createTrxDto.amount);
+    recipientData.amount = Math.abs(createTrxDto.amount);
 
-  return [initiatorData, recipientData];
-}
+    return [initiatorData, recipientData];
+  }
 
   getPaymentRef(type: string) {
     let tiemStapm = Date.now();
@@ -227,7 +229,7 @@ export class TransactionsService {
   }
 
   async getDepositORPayoutPayload(
-    trxDto: DepositDto
+    trxDto: DepositDto,
   ): Promise<CreateTransactionDto> {
     const account = await this.dabaseSource.manager.findOne(Account, {
       where: { account_number: trxDto.account_number },
@@ -283,7 +285,7 @@ export class TransactionsService {
             .from(Transactions, "trx")
             .where("payment_ref = :ref", { ref: reverseTrxDto.payment_ref })
             .groupBy("type")
-            .getQuery()
+            .getQuery(),
       )
       .setParameter("registered", true)
       .getMany();
@@ -296,8 +298,8 @@ export class TransactionsService {
       reversedTransaction.push(
         await this.initiate(
           this.getReversalPayLoad(trx, reverseTrxDto),
-          trx.payment_ref
-        )
+          trx.payment_ref,
+        ),
       );
     }
 
@@ -319,7 +321,52 @@ export class TransactionsService {
   async getLifeTransactionSummary() {
     const queryRunner = this.dabaseSource.createQueryRunner();
     return await queryRunner.query(
-      `SELECT type, SUM(ABS(amount)) AS amount FROM transactions GROUP BY type`
+      `SELECT type, SUM(ABS(amount)) AS amount FROM transactions GROUP BY type`,
     );
+  }
+
+  async getAccountSummary(accDto: GetTrxByAccountDto) {
+    const { account_number } = accDto;
+
+    const account = await this.dabaseSource.manager.findOne(Account, {
+      where: { account_number },
+    });
+    if (!account) throw new NotFoundException("Account not found");
+
+    const raw = await this.transactionRepo
+      .createQueryBuilder("t")
+      .select(
+        "COALESCE(SUM(CASE WHEN t.type = :deposit AND t.amount > 0 THEN t.amount ELSE 0 END), 0)",
+        "total_deposit",
+      )
+      .addSelect(
+        "COALESCE(SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END), 0)",
+        "total_inflow",
+      )
+      .addSelect(
+        "COALESCE(SUM(CASE WHEN t.amount < 0 THEN ABS(t.amount) ELSE 0 END), 0)",
+        "total_expense",
+      )
+      .addSelect("COUNT(t.id)", "transaction_count")
+      .where("t.account_number = :account_number", { account_number })
+      .andWhere("t.status = :status", { status: TransactionStatus.SUCCESSFUL })
+      .setParameter("deposit", TransactionTypes.DEPOSIT)
+      .getRawOne();
+
+    const total_deposit = parseFloat(raw.total_deposit);
+    const total_inflow = parseFloat(raw.total_inflow);
+    const total_expense = parseFloat(raw.total_expense);
+
+    return {
+      account_number,
+      account_name: account.account_name,
+      currency: account.currency,
+      current_balance: parseFloat(account.balance.toString()),
+      total_deposit, // money in through DEPOSIT transactions only
+      total_inflow, // all money in (deposits + transfers received + reversals)
+      total_expense, // all money out (transfers sent, payouts, etc.)
+      net_flow: total_inflow - total_expense,
+      transaction_count: Number(raw.transaction_count),
+    };
   }
 }
