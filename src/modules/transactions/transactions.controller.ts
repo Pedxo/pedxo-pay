@@ -27,32 +27,34 @@ export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post("initiate")
-  initiate(
-    @Body() createTransactionDto: CreateTransactionDto
-  ): InitiateTrxResDto {
-    return plainToInstance(
-      InitiateTrxResDto,
-      this.transactionsService.initiate(createTransactionDto)
-    );
+  async initiate(
+    @Body() dto: CreateTransactionDto,
+  ): Promise<InitiateTrxResDto> {
+    const trx = await this.transactionsService.initiate(dto);
+    return plainToInstance(InitiateTrxResDto, trx);
   }
 
   @Post("deposit")
-  deposit(@Body() depositDto: DepositDto): InitiateTrxResDto {
-    return plainToInstance(
-      InitiateTrxResDto,
-      this.transactionsService.deposit(depositDto)
-    );
+  async deposit(@Body() dto: DepositDto): Promise<InitiateTrxResDto> {
+    const trx = await this.transactionsService.deposit(dto);
+    return plainToInstance(InitiateTrxResDto, trx);
   }
 
   @Post("payout")
-  payout(@Body() depositDto: DepositDto): InitiateTrxResDto {
-    return plainToInstance(
-      InitiateTrxResDto,
-      this.transactionsService.deposit({
-      ...depositDto,
+  async payout(@Body() dto: DepositDto): Promise<InitiateTrxResDto> {
+    const trx = await this.transactionsService.deposit({
+      ...dto,
       type: TransactionTypes.PAYOUT,
-    })
-    );
+    });
+    return plainToInstance(InitiateTrxResDto, trx);
+  }
+
+  @Post("reverse")
+  async executeReversal(
+    @Body() param: ReverseTrxDto,
+  ): Promise<InitiateTrxResDto[]> {
+    const trxs = await this.transactionsService.reversal(param);
+    return plainToInstance(InitiateTrxResDto, trxs);
   }
 
   @Get()
@@ -65,26 +67,31 @@ export class TransactionsController {
     return this.transactionsService.getLifeTransactionSummary();
   }
 
+  @Get("user-account-summary/:account_number")
+  getAccountSummary(@Param() accDto: GetTrxByAccountDto) {
+    return this.transactionsService.getAccountSummary(accDto);
+  }
+
   @Get(":account_number")
   getTransactionByAcc(
     @Param() account_number: GetTrxByAccountDto,
-    @Query() qeury: GetAllTransactionDto
+    @Query() qeury: GetAllTransactionDto,
   ) {
     return this.transactionsService.getTransactionByAcc(account_number, qeury);
   }
 
-  @Post("reverse")
-  executeReversal(@Body() param: ReverseTrxDto): InitiateTrxResDto {
-    return plainToInstance(
-      InitiateTrxResDto,
-      this.transactionsService.reversal(param)
-    );
-  }
+  // @Post("reverse")
+  // executeReversal(@Body() param: ReverseTrxDto): InitiateTrxResDto {
+  //   return plainToInstance(
+  //     InitiateTrxResDto,
+  //     this.transactionsService.reversal(param),
+  //   );
+  // }
 
   @Patch(":id")
   update(
     @Param("id") id: string,
-    @Body() updateTransactionDto: UpdateTransactionDto
+    @Body() updateTransactionDto: UpdateTransactionDto,
   ) {
     return this.transactionsService.update(+id, updateTransactionDto);
   }
