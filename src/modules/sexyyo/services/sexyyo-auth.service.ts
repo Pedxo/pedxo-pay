@@ -9,10 +9,8 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { User } from "src/modules/account/entities/user.entity";
 import { Account } from "src/modules/account/entities/account.entity";
-import {
-  AccountTypes,
-  Currency,
-} from "src/modules/account/dto/account.dto";
+import { AccountTypes } from "src/modules/account/dto/account.dto";
+import { SEXYYO_WALLET_CURRENCIES } from "src/modules/account/wallet-currencies";
 import {
   SexyyoLoginDto,
   SexyyoRegisterDto,
@@ -51,7 +49,7 @@ export class SexyyoAuthService {
 
     const savedUser = await this.userRepo.save(user);
 
-    // Automatically provision multi-currency wallets (NGN, USD, GBP, EUR)
+    // Ledger wallets for every production currency (digits + symbol, not a bank API)
     await this.ensureUserWallets(savedUser);
 
     const userWithAccounts = await this.userRepo.findOne({
@@ -91,7 +89,7 @@ export class SexyyoAuthService {
       throw new UnauthorizedException("Invalid email or password.");
     }
 
-    // Ensure all 4 currency wallets exist
+    // Ensure every production currency wallet exists
     await this.ensureUserWallets(user);
 
     const freshUser = await this.userRepo.findOne({
@@ -162,20 +160,13 @@ export class SexyyoAuthService {
   }
 
   private async ensureUserWallets(user: User): Promise<void> {
-    const currencies = [
-      Currency.NGN,
-      Currency.USD,
-      Currency.GBP,
-      Currency.EUR,
-    ];
-
     const existingAccounts = await this.accountRepo.find({
       where: { user_id: user.id, type: AccountTypes.SAVING },
     });
 
     const existingCurrencies = new Set(existingAccounts.map((acc) => acc.currency));
 
-    for (const currency of currencies) {
+    for (const currency of SEXYYO_WALLET_CURRENCIES) {
       if (!existingCurrencies.has(currency)) {
         const nextAccNum = await this.generateNextAccountNumber();
         const accountName = `${user.first_name || "User"} ${user.last_name || ""}`.trim() || user.email;
