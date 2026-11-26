@@ -6,7 +6,9 @@ export class SexyyoCheckoutDto {
   @IsPositive({ message: "Checkout amount must be greater than zero." })
   amount: number;
 
-  @IsEnum(Currency, { message: "Currency must be one of: NGN, USD, GBP, EUR" })
+  @IsEnum(Currency, {
+    message: "Currency must be one of: USD, GBP, NGN, USDT, USDC, EUR",
+  })
   currency: Currency;
 
   @IsNotEmpty({ message: "Order ID or checkout reference is required." })
